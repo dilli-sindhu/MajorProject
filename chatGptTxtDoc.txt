@@ -1,0 +1,590 @@
+Recommended implementation plan
+Overall architecture
+                    ┌─────────────────────┐
+                    │      React.js       │
+                    │   Tailwind CSS      │
+                    └──────────┬──────────┘
+                               │
+                         REST API / Axios
+                               │
+                    ┌──────────▼──────────┐
+                    │ Node.js + Express   │
+                    │ Authentication      │
+                    │ Business Logic      │
+                    └──────┬─────┬────────┘
+                           │     │
+              ┌────────────┘     └─────────────┐
+              ▼                                ▼
+       ┌─────────────┐                  ┌──────────────┐
+       │  MongoDB    │                  │  Blockchain  │
+       │             │                  │   Ethereum   │
+       │ Users       │                  │ Smart        │
+       │ NGOs        │                  │ Contract     │
+       │ Campaigns   │                  └──────┬───────┘
+       │ Donations   │                         │
+       │ Expenses    │                         ▼
+       │ Documents   │                       IPFS
+       └─────────────┘
+                           │
+                           ▼
+                   ┌─────────────────┐
+                   │   AI Assistant  │
+                   │   LLM API       │
+                   └─────────────────┘
+
+The key design principle should be:
+
+MongoDB + Blockchain = source of truth; AI = assistant that explains/retrieves that information.
+
+Phase 1 — Finalize requirements
+
+Before writing code, create a simple requirements document.
+
+Users
+
+Admin
+
+Login
+Register/verify NGOs
+Manage NGOs
+Monitor transactions
+View dashboards
+Review suspicious/mismatched records
+
+NGO
+
+Login
+Create campaigns
+Receive donations
+Record expenditures
+Upload supporting documents
+View donation/expenditure history
+
+Donor
+
+Register/login
+Browse verified NGOs
+View campaigns
+Donate
+Track donation utilization
+Verify transactions/documents
+Ask AI questions
+
+This directly follows the three-user structure in your finalized abstract.
+
+Phase 2 — Design your database
+
+Start with MongoDB before blockchain.
+
+I recommend these collections:
+
+User
+ ├── _id
+ ├── name
+ ├── email
+ ├── password
+ └── role
+
+NGO
+ ├── _id
+ ├── name
+ ├── description
+ ├── verificationStatus
+ └── documents
+
+Campaign
+ ├── _id
+ ├── ngoId
+ ├── title
+ ├── description
+ ├── targetAmount
+ └── currentAmount
+
+Donation
+ ├── _id
+ ├── donorId
+ ├── campaignId
+ ├── amount
+ ├── transactionHash
+ └── timestamp
+
+Expenditure
+ ├── _id
+ ├── ngoId
+ ├── campaignId
+ ├── amount
+ ├── category
+ ├── description
+ ├── documentId
+ └── transactionHash
+
+Document
+ ├── _id
+ ├── expenditureId
+ ├── ipfsHash
+ ├── fileName
+ └── uploadedAt
+
+Don't start with 20+ collections. Keep the first version manageable.
+
+Phase 3 — Build authentication
+
+Implement:
+
+Register
+   ↓
+Login
+   ↓
+JWT
+   ↓
+Role-based authorization
+
+For example:
+
+/admin/*
+/ngo/*
+/donor/*
+
+Use:
+
+JWT
+bcrypt
+middleware
+protected routes
+
+You should be able to demonstrate:
+
+"A donor cannot access NGO administrative APIs."
+
+That's an important security point for your project.
+
+Phase 4 — Build the basic MERN application
+
+Before touching blockchain, make the normal application work.
+
+Build in this order:
+Authentication
+      ↓
+Admin dashboard
+      ↓
+NGO management
+      ↓
+Campaign management
+      ↓
+Donor dashboard
+      ↓
+Donation system
+      ↓
+NGO expenditure management
+
+At this point you should have a functioning MERN application.
+
+Don't worry if blockchain isn't connected yet.
+
+Phase 5 — Implement blockchain
+
+Now introduce Solidity.
+
+Create a smart contract for the transactions that need immutable verification.
+
+For example:
+
+recordDonation()
+recordExpenditure()
+getDonation()
+getExpenditure()
+verifyTransaction()
+
+The simplified flow becomes:
+
+Donor
+ ↓
+React
+ ↓
+Express
+ ↓
+Smart Contract
+ ↓
+Ethereum
+ ↓
+Transaction Hash
+ ↓
+MongoDB
+
+Store the transactionHash in MongoDB so your application can easily associate the application record with the blockchain record.
+
+Important
+
+Don't store everything on blockchain.
+
+For example, don't put:
+
+name
+email
+password
+PDF
+large description
+
+on-chain.
+
+Instead:
+
+MongoDB
+→ application data
+
+Blockchain
+→ immutable transaction information
+
+IPFS
+→ supporting documents
+
+Phase 6 — Add IPFS
+
+For an expenditure:
+
+NGO records expense
+       ↓
+Uploads invoice/receipt
+       ↓
+File stored on IPFS
+       ↓
+IPFS returns CID/hash
+       ↓
+CID stored in MongoDB
+       ↓
+CID associated with blockchain transaction
+
+Your document verification flow becomes:
+
+QR Code
+   ↓
+Document ID / CID
+   ↓
+Retrieve document
+   ↓
+Verify integrity
+   ↓
+Display status
+
+This directly supports the IPFS and QR verification objectives in your abstract.
+
+Phase 7 — Build dashboards
+
+Now make the project visually impressive.
+
+Donor dashboard
+Total Donated
+Campaigns Supported
+Amount Utilized
+Recent Transactions
+Donation History
+Document Verification
+AI Assistant
+NGO dashboard
+Total Donations
+Total Expenditure
+Active Campaigns
+Remaining Funds
+Recent Transactions
+Documents
+Blockchain Status
+Admin dashboard
+Registered NGOs
+Verified NGOs
+Total Donations
+Total Expenditure
+Campaign Statistics
+Transaction Monitoring
+AI Analysis
+Phase 8 — Add your AI feature
+
+Only after your normal application works should you add AI.
+
+Your feature:
+
+AI-powered natural-language assistant
+
+Example:
+
+"How was my donation used?"
+
+The architecture should be:
+
+User question
+      ↓
+React
+      ↓
+Express API
+      ↓
+Identify user
+      ↓
+Retrieve authorized data
+      ↓
+MongoDB + Blockchain
+      ↓
+Relevant donation/expenditure records
+      ↓
+LLM
+      ↓
+Natural-language response
+      ↓
+React
+Example
+
+User asks:
+
+"How was my donation used?"
+
+Your backend retrieves:
+
+Donation:
+₹10,000
+
+Campaign:
+Education Support
+
+Expenses:
+Books - ₹4,000
+Supplies - ₹3,000
+Transport - ₹2,000
+Other - ₹1,000
+
+Then AI generates a readable response.
+
+🚨 Very important AI security rule
+
+Don't simply send:
+
+User question
+     ↓
+LLM
+     ↓
+Answer
+
+Instead:
+
+User
+ ↓
+Question
+ ↓
+Backend authentication
+ ↓
+Check authorization
+ ↓
+Retrieve verified records
+ ↓
+Give only authorized data to AI
+ ↓
+LLM
+ ↓
+Answer
+
+For example, Donor A shouldn't be able to ask:
+
+"Show me all transactions of Donor B."
+
+The backend must restrict the data before the AI sees it.
+
+This is a great point to discuss during your project viva.
+
+Phase 9 — Make the AI more reliable
+
+Initially, you can implement:
+
+MongoDB
+    ↓
+Retrieve relevant records
+    ↓
+LLM API
+
+Once this works, you can add RAG.
+
+RAG version
+Question
+   ↓
+Embedding
+   ↓
+Vector Search
+   ↓
+Relevant documents/records
+   ↓
+Verified context
+   ↓
+LLM
+   ↓
+Answer
+
+For your project, MongoDB Atlas Vector Search is a logical choice because you're already using MongoDB.
+
+But don't make RAG mandatory from day one.
+
+Phase 10 — Testing
+
+You should have separate testing for each layer.
+
+Backend
+
+Test:
+
+Authentication
+Authorization
+Donation APIs
+Expenditure APIs
+Campaign APIs
+AI API
+
+Use Postman.
+
+Blockchain
+
+Test:
+
+Donation transaction
+Expenditure transaction
+Transaction hash
+Contract functions
+Unauthorized modification
+AI
+
+Test questions such as:
+
+How much did I donate?
+
+How was my donation used?
+
+How much was spent on education?
+
+Which campaign did I support?
+
+Show me my recent donations.
+
+Also test questions where the answer doesn't exist.
+
+Your AI should respond:
+
+"I couldn't find verified information for that request."
+
+rather than inventing an answer.
+
+Phase 11 — Deployment
+
+Once everything works locally:
+
+GitHub
+   │
+   ├── frontend
+   │      ↓
+   │    Vercel
+   │
+   └── backend
+          ↓
+        Render / AWS
+
+MongoDB
+   ↓
+MongoDB Atlas
+
+Blockchain
+   ↓
+Ethereum test network
+
+Documents
+   ↓
+IPFS
+
+Don't wait until the end to use Git.
+
+Commit after every major feature:
+
+git commit -m "Implement JWT authentication"
+git commit -m "Add NGO management"
+git commit -m "Implement donation workflow"
+git commit -m "Integrate smart contract"
+git commit -m "Add IPFS document storage"
+git commit -m "Integrate AI assistant"
+🗓️ Recommended development schedule
+
+If you have around 8–10 weeks, I'd do:
+
+Week	Work
+1	Requirements + UI design + database/schema design
+2	React setup + Node/Express setup + MongoDB
+3	JWT authentication + role-based authorization
+4	Admin + NGO + Donor modules
+5	Campaign + donation + expenditure workflows
+6	Solidity smart contract + Ethereum integration
+7	IPFS + document upload + QR verification
+8	Dashboards + blockchain verification
+9	AI natural-language assistant
+10	Testing + deployment + documentation + presentation
+
+If you're short on time, do not sacrifice the core project for advanced AI.
+
+Your priority should be:
+
+1. MERN application             ██████████
+2. Authentication/security      █████████
+3. Blockchain                   █████████
+4. IPFS + verification          ████████
+5. Dashboards                   ███████
+6. AI Assistant                 ███████
+7. Advanced RAG                 ███
+🎯 The final project flow
+
+When everything is complete, your project should demonstrate this:
+
+                    ADMIN
+                      │
+               Verify NGO
+                      ↓
+                    NGO
+                      │
+               Create Campaign
+                      ↓
+                   DONOR
+                      │
+                  Donate
+                      ↓
+               Smart Contract
+                      ↓
+                  Blockchain
+                      ↓
+                 NGO receives
+                      ↓
+              Records expenditure
+                      ↓
+              Uploads invoice
+                      ↓
+                    IPFS
+                      ↓
+            QR / Integrity Verification
+                      ↓
+                  Donor sees
+             how money was used
+                      ↓
+                 AI Assistant
+                      ↓
+        "How was my donation used?"
+                      ↓
+          Verified data retrieved
+                      ↓
+                AI explanation
+
+That gives you a complete end-to-end story for your project.
+
+One thing I'd strongly recommend
+
+Since this is a major project, maintain a proper GitHub repository from day one with:
+
+ngo-management-system/
+│
+├── frontend/
+├── backend/
+├── smart-contracts/
+├── docs/
+│   ├── architecture
+│   ├── database-design
+│   ├── API-documentation
+│   └── screenshots
+├── README.md
+└── .gitignore

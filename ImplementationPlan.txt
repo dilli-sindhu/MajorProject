@@ -1,0 +1,155 @@
+Complete Implementation Plan: NGO Management System Using Blockchain
+
+Here's a practical, week-by-week execution plan you can actually follow — from zero to a working, demo-ready project.
+
+PHASE 0: Setup & Planning (Week 1)
+Step 1: Environment Setup
+
+Install these first, in this order:
+
+Java 17+ & Maven → for Spring Boot backend
+IntelliJ IDEA (Community edition is fine) or Eclipse
+Node.js + npm → for React frontend
+MySQL Server + MySQL Workbench
+Git + GitHub account → create your repo now, commit early and often
+MetaMask browser extension → create a test wallet
+Remix IDE (browser-based, no install needed) → for writing/testing smart contracts
+Postman → for API testing
+Step 2: Get Testnet Access
+Choose Polygon Amoy (recommended — cheaper, faster, easier faucets than Sepolia)
+Get an RPC endpoint from Alchemy or Infura (free tier is enough) — sign up, create a project, copy the RPC URL
+Get free test tokens (MATIC on Amoy) from the official Polygon faucet — you need this to pay gas fees on testnet
+Add Amoy network to MetaMask (network settings → add network)
+Step 3: Design Documents (do these on paper/diagrams before coding)
+ER Diagram — users, ngos, campaigns, donations, expenditures tables
+Use Case Diagram — Admin/NGO/Donor actions
+Sequence Diagram — donation flow end-to-end
+API list — write down every endpoint you'll need (e.g., POST /api/donations, GET /api/ngo/{id}/expenditures)
+
+I can generate any of these diagrams for you right now if you want — just say which one.
+
+PHASE 1: Smart Contracts First (Week 2)
+
+Build and test contracts before touching the backend — everything else depends on this.
+
+Step 1: Write contracts in Remix
+DonationContract.sol
+ExpenditureContract.sol
+Test every function manually in Remix's built-in testing environment (JavaScript VM) first — free, instant, no gas needed
+Step 2: Move to Hardhat (recommended over pure Remix for a real project)
+bash
+mkdir ngo-blockchain && cd ngo-blockchain
+npm init -y
+npm install --save-dev hardhat
+npx hardhat init
+Write deployment scripts (scripts/deploy.js)
+Write unit tests (test/donation.test.js) using Hardhat + Chai
+This gives you a professional, testable, reproducible setup — much better for your report than "I clicked deploy in Remix"
+Step 3: Deploy to Amoy testnet
+bash
+npx hardhat run scripts/deploy.js --network amoy
+Save the deployed contract address and ABI (JSON) — you'll need both in your Spring Boot backend
+Verify contract on PolygonScan (Amoy explorer) — makes it look professional and lets anyone inspect it
+
+Milestone check: You should now be able to call donate() and recordExpenditure() directly from Remix/Hardhat console and see the transaction on the Amoy block explorer.
+
+PHASE 2: Backend Foundation (Weeks 3–4)
+Step 1: Spring Boot project skeleton
+
+Use start.spring.io with these dependencies:
+
+Spring Web
+Spring Security
+Spring Data JPA
+MySQL Driver
+Validation
+Step 2: Build security from day one (don't postpone this)
+SecurityConfig.java — configure JWT filter chain, role-based endpoints (/api/admin/**, /api/ngo/**, /api/donor/**)
+JwtUtil.java — token generation/validation
+User entity with BCrypt password hashing
+Login/Register controllers, tested in Postman before moving on
+Step 3: Database schema + JPA entities
+
+Create entities matching your ER diagram: User, NGO, Campaign, Donation, Expenditure. Let Hibernate auto-generate tables (spring.jpa.hibernate.ddl-auto=update) during dev.
+
+Step 4: Core CRUD APIs (no blockchain yet)
+
+Build and Postman-test these first with plain MySQL storage:
+
+NGO registration/approval
+Campaign creation
+Donation record creation (without blockchain call yet)
+Expenditure record creation (without blockchain call yet)
+
+Why build this "dumb" version first? Because debugging Spring Boot + Web3j simultaneously is painful. Get the plumbing working, then add blockchain.
+
+PHASE 3: Web3j Integration (Week 5)
+Step 1: Generate Java wrapper from contract ABI
+bash
+web3j generate solidity -a DonationContract.abi -b DonationContract.bin -o src/main/java -p com.ngo.blockchain
+
+This gives you a Java class to call your contract like a normal method.
+
+Step 2: Connect Spring Boot to Amoy RPC
+java
+Web3j web3j = Web3j.build(new HttpService("https://polygon-amoy.g.alchemy.com/v2/YOUR_KEY"));
+Step 3: Wire it into your existing APIs
+When a donation API is hit → call contract's donate() via Web3j → store returned tx_hash in MySQL
+Set up an event listener (Web3j subscription) for DonationMade/ExpenditureRecorded events → auto-update MySQL cache and detect any mismatch
+
+Milestone check: Postman call to /api/donations → money moves on testnet → tx_hash appears in your MySQL table → visible on PolygonScan.
+
+PHASE 4: IPFS Integration (Week 6, can overlap with Phase 3)
+Sign up for Pinata (free tier)
+Get API key/secret
+Build IPFSService.java — upload expenditure receipt file → Pinata returns a CID (hash)
+Store CID in MySQL and pass it into the recordExpenditure() smart contract call as ipfsHash
+Frontend can later fetch file via https://gateway.pinata.cloud/ipfs/{CID}
+PHASE 5: Frontend (Weeks 6–8, start in parallel with Phase 3 if you have a teammate)
+Step 1: React project setup
+bash
+npx create-react-app ngo-frontend
+npm install tailwindcss axios ethers chart.js react-chartjs-2 qrcode.react
+Step 2: Build role-based routing
+Login/Register page
+Protected routes based on JWT role (Admin/NGO/Donor)
+Step 3: Build dashboards in this order
+Admin dashboard (simplest — mostly tables + approve/reject buttons)
+NGO dashboard (campaign creation form, expenditure form with file upload)
+Donor dashboard (browse campaigns, donate button, history)
+Step 4: MetaMask + ethers.js integration
+javascript
+const provider = new ethers.BrowserProvider(window.ethereum);
+const signer = await provider.getSigner();
+const contract = new ethers.Contract(contractAddress, abi, signer);
+const tx = await contract.donate(ngoAddress, campaignId, { value: ethers.parseEther(amount) });
+await tx.wait();
+After tx confirms, call your Spring Boot API to log it (or rely purely on your backend's event listener)
+Step 5: QR code + Chart.js
+QR code on donation receipt linking to PolygonScan tx URL
+Chart.js for donation trends, fund utilization pie charts
+PHASE 6: Integration Testing (Week 9)
+Full flow test: Register NGO → Admin approves → Donor connects MetaMask → Donates → NGO records expenditure with receipt → Donor tracks utilization → Verify on PolygonScan
+Test the tamper detection feature: manually edit a MySQL row directly in Workbench → run your audit check → confirm it flags the mismatch (this is your standout demo moment)
+Postman collection covering every API, including negative/error cases
+Cross-browser test with MetaMask
+PHASE 7: Deployment (Week 10)
+Backend: Deploy Spring Boot (as JAR or Docker container) to AWS EC2 / Azure App Service
+Frontend: Deploy React build to AWS S3+CloudFront, Azure Static Web Apps, or Vercel/Netlify (simpler for a student project)
+Database: AWS RDS (MySQL) or Azure Database for MySQL
+Environment variables: RPC URL, contract addresses, Pinata keys, JWT secret — never hardcode these
+PHASE 8: Documentation (ongoing, finalize Week 10-11)
+Project report (abstract, architecture, ER/UML diagrams, screenshots, results)
+README with setup instructions
+Record a demo video (very commonly required for evaluation)
+Suggested Weekly Summary
+Week	Focus
+1	Setup, diagrams, planning
+2	Smart contracts (Remix → Hardhat → deploy to Amoy)
+3-4	Spring Boot backend + security + plain CRUD APIs
+5	Web3j integration
+6	IPFS integration + start frontend
+7-8	Complete React frontend + MetaMask
+9	Full integration testing
+10	Deployment
+11	Documentation, report, demo prep

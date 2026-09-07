@@ -1,0 +1,13 @@
+Admin logs in (JWT auth)
+    ↓
+Views pending NGO registration requests
+    ↓
+Reviews NGO documents (stored on IPFS, hash on blockchain)
+    ↓
+Approves or Rejects NGO
+    ↓
+NGO status updated in MySQL (verification_status = "APPROVED")
+    ↓
+Admin can also run "Audit Check" → compares MySQL records vs blockchain event logs
+    ↓
+If mismatch found → flags a "Tampered" alert

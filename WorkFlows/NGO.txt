@@ -1,0 +1,21 @@
+NGO registers (uploads documents) → status = PENDING
+    ↓
+Waits for Admin approval
+    ↓
+Once approved → NGO creates a Campaign (e.g., "Flood Relief 2026")
+    ↓
+Campaign stored in MySQL, visible to donors on frontend
+    ↓
+Donors start donating to this campaign (blockchain transactions happen here — see Donor flow)
+    ↓
+NGO receives funds in their wallet (MetaMask address linked to NGO account)
+    ↓
+NGO spends money in real world → uploads receipt/bill (PDF/image)
+    ↓
+Backend uploads file to IPFS (Pinata) → gets back a CID (content hash)
+    ↓
+Backend calls smart contract's recordExpenditure(amount, ipfsHash, category)
+    ↓
+Transaction confirmed on blockchain → tx_hash + CID stored in MySQL too
+    ↓
+Expenditure now visible to donors with proof attached
